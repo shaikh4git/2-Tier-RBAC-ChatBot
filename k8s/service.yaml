@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: two-tier-rbac-backend
+  namespace: two-tier-rbac
+  labels:
+    app: two-tier-rbac-backend
+spec:
+  type: ClusterIP
+
+  selector:
+    app: two-tier-rbac-backend
+
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP

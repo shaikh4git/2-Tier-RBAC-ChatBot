@@ -1,134 +1,154 @@
-import os
 import json
+import os
+from datetime import datetime, timedelta, timezone
+
 import bcrypt
 import jwt
 
-from datetime import datetime, timedelta, timezone
-
-
-JWT_ALGORITHM = "HS256"
-DEFAULT_TOKEN_EXPIRY_MINUTES = 30
+from .config import (
+    CHATBOT_USERS_JSON,
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    JWT_ALGORITHM,
+    JWT_SECRET_KEY,
+)
 
 
 def load_users():
-    """Load users from the Kubernetes Secret environment variable."""
-
-    users_json = os.getenv("CHATBOT_USERS_JSON", "{}")
+    """
+    Load the user database from the CHATBOT_USERS_JSON environment variable.
+    """
+    raw_users = os.getenv(
+        "CHATBOT_USERS_JSON",
+        CHATBOT_USERS_JSON,
+    )
 
     try:
-        users = json.loads(users_json)
+        users = json.loads(raw_users)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            "CHATBOT_USERS_JSON contains invalid JSON"
+        ) from exc
 
-        if not isinstance(users, dict):
-            raise ValueError("User configuration must be a JSON object")
+    if not isinstance(users, dict):
+        raise RuntimeError(
+            "CHATBOT_USERS_JSON must contain a JSON object"
+        )
 
-        return users
-
-    except (json.JSONDecodeError, ValueError) as exc:
-        print(f"User configuration error: {exc}")
-        return {}
+    return {
+        username.lower(): record
+        for username, record in users.items()
+    }
 
 
 def authenticate(username, password):
     """
-    Authenticate a user using bcrypt.
+    Authenticate credentials against bcrypt password hashes.
 
-    Returns authenticated user identity or None.
+    Returns a safe user object without the password hash.
     """
-
     if not username or not password:
         return None
 
     users = load_users()
 
-    username = username.strip().lower()
-    user_record = users.get(username)
+    record = users.get(username.lower())
 
-    if not isinstance(user_record, dict):
+    if not record:
         return None
 
-    password_hash = user_record.get("password_hash")
+    password_hash = record.get("password_hash")
 
-    if not isinstance(password_hash, str) or not password_hash:
+    if not password_hash:
         return None
 
     try:
-        valid_password = bcrypt.checkpw(
+        password_matches = bcrypt.checkpw(
             password.encode("utf-8"),
             password_hash.encode("utf-8"),
         )
-
     except (ValueError, TypeError):
         return None
 
-    if not valid_password:
+    if not password_matches:
         return None
 
     return {
-        "username": username,
-        "department": user_record.get("department", ""),
-        "roles": user_record.get("roles", []),
+        "username": username.lower(),
+        "department": record.get("department", ""),
+        "roles": record.get("roles", []),
     }
 
 
 def create_access_token(user, expires_delta=None):
     """
-    Create a signed JWT for an authenticated user.
-
-    The JWT signing secret must be supplied through JWT_SECRET_KEY.
+    Create a signed JWT access token.
     """
-
-    secret_key = os.getenv("JWT_SECRET_KEY")
-
-    if not secret_key:
+    if not JWT_SECRET_KEY:
         raise RuntimeError("JWT_SECRET_KEY is not configured")
-
-    if not user or not user.get("username"):
-        raise ValueError("A valid authenticated user is required")
-
-    if expires_delta is None:
-        expiry_minutes = int(
-            os.getenv(
-                "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
-                DEFAULT_TOKEN_EXPIRY_MINUTES,
-            )
-        )
-        expires_delta = timedelta(minutes=expiry_minutes)
 
     now = datetime.now(timezone.utc)
 
+    expiry = expires_delta or timedelta(
+        minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
     payload = {
         "sub": user["username"],
-        "department": user.get("department", ""),
-        "roles": user.get("roles", []),
         "iat": now,
-        "exp": now + expires_delta,
+        "exp": now + expiry,
     }
 
     return jwt.encode(
         payload,
-        secret_key,
+        JWT_SECRET_KEY,
         algorithm=JWT_ALGORITHM,
     )
 
 
 def decode_access_token(token):
     """
-    Verify JWT signature and expiry.
-
-    Returns verified claims or None if the token is invalid.
+    Validate and decode a JWT access token.
     """
-
-    secret_key = os.getenv("JWT_SECRET_KEY")
-
-    if not secret_key or not token:
-        return None
+    if not JWT_SECRET_KEY:
+        raise RuntimeError("JWT_SECRET_KEY is not configured")
 
     try:
         return jwt.decode(
             token,
-            secret_key,
+            JWT_SECRET_KEY,
             algorithms=[JWT_ALGORITHM],
         )
-
     except jwt.InvalidTokenError:
         return None
+
+
+def get_current_user_from_token(token):
+    """
+    Validate the JWT and reload the user's current roles from the
+    backend user database.
+
+    The JWT is used only to establish identity. Role claims from the
+    token are deliberately not trusted.
+    """
+    payload = decode_access_token(token)
+
+    if not payload:
+        return None
+
+    username = payload.get("sub")
+
+    if not username:
+        return None
+
+    users = load_users()
+
+    record = users.get(username.lower())
+
+    if not record:
+        return None
+
+    return {
+        "username": username.lower(),
+        "department": record.get("department", ""),
+        "roles": record.get("roles", []),
+    }

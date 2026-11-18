@@ -3,7 +3,9 @@ import re
 from .rbac import effective_roles
 
 
-SSN_PATTERN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+SSN_PATTERN = re.compile(
+    r"\b\d{3}-\d{2}-\d{4}\b"
+)
 
 CREDIT_CARD_PATTERN = re.compile(
     r"\b(?:\d[ -]*?){13,19}\b"
@@ -12,15 +14,13 @@ CREDIT_CARD_PATTERN = re.compile(
 
 def apply_output_guardrails(answer, user):
     """
-    Prevent unauthorized users from receiving responses
-    containing SSN or credit-card-like numbers.
-
-    HR and C-Level roles are permitted to receive such content.
+    Prevent unauthorized users from receiving responses containing
+    apparent Social Security numbers or credit card numbers.
     """
     if not answer:
         return answer
 
-    contains_sensitive_data = (
+    contains_sensitive_data = bool(
         SSN_PATTERN.search(answer)
         or CREDIT_CARD_PATTERN.search(answer)
     )

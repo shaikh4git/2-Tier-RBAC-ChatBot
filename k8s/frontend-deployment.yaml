@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: two-tier-rbac-frontend
+  namespace: two-tier-rbac
+  labels:
+    app: two-tier-rbac-frontend
+    app.kubernetes.io/part-of: two-tier-rbac-chatbot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: two-tier-rbac-frontend
+  template:
+    metadata:
+      labels:
+        app: two-tier-rbac-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: shaikhdocker/two-tier-rbac-frontend:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: streamlit
+              containerPort: 8501
+              protocol: TCP
+          env:
+            - name: BACKEND_API_URL
+              value: "http://two-tier-rbac-backend:8000"
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL

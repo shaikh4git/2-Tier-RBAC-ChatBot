@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: two-tier-rbac-backend
+  namespace: two-tier-rbac
+  labels:
+    app: two-tier-rbac-backend
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: two-tier-rbac-backend
+
+  template:
+    metadata:
+      labels:
+        app: two-tier-rbac-backend
+
+    spec:
+      containers:
+        - name: backend
+          image: shaikhdocker/two-tier-rbac-backend:1.0.1
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+
+          envFrom:
+            - configMapRef:
+                name: two-tier-rbac-config
+
+            - secretRef:
+                name: 2tiersecrets
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
