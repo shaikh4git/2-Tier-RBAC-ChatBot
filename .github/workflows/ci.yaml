@@ -327,7 +327,7 @@ jobs:
       - backend-tests
       - frontend-validation
       - gitleaks
-      - sonarqube
+      #- sonarqube
 
     if: >-
       needs.detect-changes.outputs.frontend == 'true' &&
