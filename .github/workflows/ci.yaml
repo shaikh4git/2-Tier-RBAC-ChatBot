@@ -272,13 +272,16 @@ jobs:
 
     env:
       IMAGE_NAME: shaikhdocker/two-tier-rbac-backend
-      IMAGE_TAG: ${{ github.sha[:7] }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     steps:
       - name: Checkout application repository
         uses: actions/checkout@v7
+
+      - name: Generate short image tag
+        id: short-tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Docker Hub login
         run: |
@@ -287,6 +290,8 @@ jobs:
             --password-stdin
 
       - name: Build backend image
+        env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
         run: |
           docker build --pull \
             -t "$IMAGE_NAME:$IMAGE_TAG" \
@@ -296,7 +301,7 @@ jobs:
       - name: Trivy backend image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: shaikhdocker/two-tier-rbac-backend:$IMAGE_TAG
+          image-ref: shaikhdocker/two-tier-rbac-backend:${{ steps.short-tag.outputs.tag }}
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -304,6 +309,8 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Push backend image
+        env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
         run: |
           docker push "$IMAGE_NAME:$IMAGE_TAG"
 
@@ -330,13 +337,16 @@ jobs:
 
     env:
       IMAGE_NAME: shaikhdocker/two-tier-rbac-frontend
-      IMAGE_TAG: ${{ github.sha[:7] }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
     steps:
       - name: Checkout application repository
         uses: actions/checkout@v7
+
+      - name: Generate short image tag
+        id: short-tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Docker Hub login
         run: |
@@ -345,6 +355,8 @@ jobs:
             --password-stdin
 
       - name: Build frontend image
+        env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
         run: |
           docker build --pull \
             -t "$IMAGE_NAME:$IMAGE_TAG" \
@@ -354,7 +366,7 @@ jobs:
       - name: Trivy frontend image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: shaikhdocker/two-tier-rbac-frontend:$IMAGE_TAG
+          image-ref: shaikhdocker/two-tier-rbac-frontend:${{ steps.short-tag.outputs.tag }}
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -362,6 +374,8 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Push frontend image
+        env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
         run: |
           docker push "$IMAGE_NAME:$IMAGE_TAG"
 
@@ -403,7 +417,6 @@ jobs:
       )
 
     env:
-      IMAGE_TAG: ${{ github.sha }}
       BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend }}
       FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.frontend }}
 
@@ -417,7 +430,13 @@ jobs:
           path: gitops
           fetch-depth: 0
 
+      - name: Generate short image tag
+        id: short-tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Update changed component image tags
+        env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
         run: |
           python3 - <<'PY'
           import os
@@ -470,6 +489,7 @@ jobs:
 
       - name: Commit and push GitOps changes
         env:
+          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
           BACKEND_CHANGED: ${{ needs.detect-changes.outputs.backend }}
           FRONTEND_CHANGED: ${{ needs.detect-changes.outputs.frontend }}
         run: |
