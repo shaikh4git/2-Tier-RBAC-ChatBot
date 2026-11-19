@@ -264,16 +264,16 @@ jobs:
       - gitleaks
       #- sonarqube
 
-    if: >-
-      always() &&
-      needs.detect-changes.result == 'success' &&
-      needs.backend-tests.result == 'success' &&
-      needs.frontend-validation.result == 'success' &&
-      needs.gitleaks.result == 'success' &&
-      needs.detect-changes.outputs.backend == 'true' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'workflow_dispatch')
+    # if: >-
+    #   always() &&
+    #   needs.detect-changes.result == 'success' &&
+    #   needs.backend-tests.result == 'success' &&
+    #   needs.frontend-validation.result == 'success' &&
+    #   needs.gitleaks.result == 'success' &&
+    #   needs.detect-changes.outputs.backend == 'true' &&
+    #   github.ref == 'refs/heads/main' &&
+    #   (github.event_name == 'push' ||
+    #    github.event_name == 'workflow_dispatch')
 
     env:
       IMAGE_NAME: shaikhdocker/two-tier-rbac-backend
@@ -334,16 +334,16 @@ jobs:
       - gitleaks
       #- sonarqube
 
-    if: >-
-      always() &&
-      needs.detect-changes.result == 'success' &&
-      needs.backend-tests.result == 'success' &&
-      needs.frontend-validation.result == 'success' &&
-      needs.gitleaks.result == 'success' &&
-      needs.detect-changes.outputs.frontend == 'true' &&
-      github.ref == 'refs/heads/main' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'workflow_dispatch')
+    # if: >-
+    #   always() &&
+    #   needs.detect-changes.result == 'success' &&
+    #   needs.backend-tests.result == 'success' &&
+    #   needs.frontend-validation.result == 'success' &&
+    #   needs.gitleaks.result == 'success' &&
+    #   needs.detect-changes.outputs.frontend == 'true' &&
+    #   github.ref == 'refs/heads/main' &&
+    #   (github.event_name == 'push' ||
+    #    github.event_name == 'workflow_dispatch')
 
     env:
       IMAGE_NAME: shaikhdocker/two-tier-rbac-frontend
