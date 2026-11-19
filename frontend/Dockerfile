@@ -24,4 +24,4 @@ USER 10001
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py"]
+CMD ["streamlit", "run", "app/app.py"]

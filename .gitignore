@@ -46,3 +46,5 @@ documents/
 build/
 dist/
 k8s/secrets.yaml
+# SonarQube coverage reports
+**/coverage.xml
