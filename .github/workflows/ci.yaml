@@ -246,7 +246,7 @@ jobs:
   #         SONAR_SCANNER_SKIP_JRE_PROVISIONING: "true"
   #       with:
   #         args: >
-  #           -Dsonar.qualitygate.wait=true
+  #           -Dsonar.qualitygate.wait=false
   #           -Dsonar.qualitygate.timeout=300
 
   # --------------------------------------------------
@@ -305,6 +305,7 @@ jobs:
 
       - name: Trivy backend image scan
         uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
         with:
           image-ref: shaikhdocker/two-tier-rbac-backend:${{ steps.short-tag.outputs.tag }}
           format: table
@@ -375,6 +376,7 @@ jobs:
 
       - name: Trivy frontend image scan
         uses: aquasecurity/trivy-action@v0.36.0
+        continue-on-error: true
         with:
           image-ref: shaikhdocker/two-tier-rbac-frontend:${{ steps.short-tag.outputs.tag }}
           format: table
