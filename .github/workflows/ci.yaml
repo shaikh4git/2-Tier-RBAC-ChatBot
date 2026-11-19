@@ -265,7 +265,6 @@ jobs:
       #- sonarqube
 
     if: >-
-    if: >-
       always() &&
       needs.detect-changes.result == 'success' &&
       needs.backend-tests.result == 'success' &&
@@ -335,7 +334,6 @@ jobs:
       - gitleaks
       #- sonarqube
 
-    if: >-
     if: >-
       always() &&
       needs.detect-changes.result == 'success' &&
