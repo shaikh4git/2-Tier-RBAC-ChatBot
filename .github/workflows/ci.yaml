@@ -216,11 +216,6 @@ jobs:
       - gitleaks
 
     steps:
-      - name: Set up Java 21
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "21"
       - name: Checkout application repository
         uses: actions/checkout@v7
         with:
@@ -237,11 +232,18 @@ jobs:
           test -s backend/coverage.xml
           echo "Backend coverage report is available."
 
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
       - name: SonarQube analysis and Quality Gate
         uses: SonarSource/sonarqube-scan-action@v8.3.0
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_SCANNER_SKIP_JRE_PROVISIONING: "true"
         with:
           args: >
             -Dsonar.qualitygate.wait=true
@@ -294,7 +296,7 @@ jobs:
       - name: Trivy backend image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: shaikhdocker/two-tier-rbac-backend:${{ github.sha[:7] }}
+          image-ref: shaikhdocker/two-tier-rbac-backend:$IMAGE_TAG
           format: table
           exit-code: "1"
           ignore-unfixed: true
@@ -352,7 +354,7 @@ jobs:
       - name: Trivy frontend image scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: shaikhdocker/two-tier-rbac-frontend:${{ github.sha }}
+          image-ref: shaikhdocker/two-tier-rbac-frontend:$IMAGE_TAG
           format: table
           exit-code: "1"
           ignore-unfixed: true
