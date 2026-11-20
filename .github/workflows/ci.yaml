@@ -295,20 +295,31 @@ jobs:
         id: short-tag
         run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: Docker Hub login
-        run: |
-          echo "$DOCKERHUB_TOKEN" | docker login \
-            --username "$DOCKERHUB_USERNAME" \
-            --password-stdin
+      - name: Set up QEMU (for arm64 emulation)
+        uses: docker/setup-qemu-action@v3
 
-      - name: Build backend image
-        env:
-          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
-        run: |
-          docker build --pull \
-            -t "$IMAGE_NAME:$IMAGE_TAG" \
-            -f backend/Dockerfile \
-            backend/
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker Hub login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build amd64 only, load it locally so Trivy can scan it
+      - name: Build backend image for scanning (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          pull: true
+          tags: shaikhdocker/two-tier-rbac-backend:${{ steps.short-tag.outputs.tag }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Trivy backend image scan
         uses: aquasecurity/trivy-action@v0.36.0
@@ -321,11 +332,17 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
-      - name: Push backend image
-        env:
-          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
-        run: |
-          docker push "$IMAGE_NAME:$IMAGE_TAG"
+      # Build amd64 + arm64 and push one multi-architecture image
+      - name: Build and push backend image (amd64 + arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: shaikhdocker/two-tier-rbac-backend:${{ steps.short-tag.outputs.tag }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
   # --------------------------------------------------
   # 7. FRONTEND IMAGE BUILD, TRIVY SCAN AND PUSH
@@ -367,19 +384,24 @@ jobs:
         run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Docker Hub login
-        run: |
-          echo "$DOCKERHUB_TOKEN" | docker login \
-            --username "$DOCKERHUB_USERNAME" \
-            --password-stdin
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build frontend image
-        env:
-          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
-        run: |
-          docker build --pull \
-            -t "$IMAGE_NAME:$IMAGE_TAG" \
-            -f frontend/Dockerfile \
-            frontend/
+      # Build amd64 only, load it locally so Trivy can scan it
+      - name: Build frontend image for scanning (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          pull: true
+          tags: shaikhdocker/two-tier-rbac-frontend:${{ steps.short-tag.outputs.tag }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
 
       - name: Trivy frontend image scan
         uses: aquasecurity/trivy-action@v0.36.0
@@ -392,11 +414,18 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
-      - name: Push frontend image
-        env:
-          IMAGE_TAG: ${{ steps.short-tag.outputs.tag }}
-        run: |
-          docker push "$IMAGE_NAME:$IMAGE_TAG"
+      # Build amd64 + arm64 and push one multi-architecture image
+      - name: Build and push frontend image (amd64 + arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: shaikhdocker/two-tier-rbac-frontend:${{ steps.short-tag.outputs.tag }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
 
   # --------------------------------------------------
   # 8. UPDATE GITOPS REPOSITORY
