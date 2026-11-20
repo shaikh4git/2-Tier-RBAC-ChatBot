@@ -80,6 +80,13 @@ jobs:
               if grep -qE '^frontend/' changed-files.txt; then
                 FRONTEND_CHANGED=true
               fi
+              
+              # A change to the CI/CD pipeline itself rebuilds and redeploys both components.
+
+              if grep -qE '^\.github/workflows/' changed-files.txt; then
+                BACKEND_CHANGED=true
+                FRONTEND_CHANGED=true
+              fi
             fi
           fi
 
