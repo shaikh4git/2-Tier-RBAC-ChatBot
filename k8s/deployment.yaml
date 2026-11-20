@@ -33,7 +33,7 @@ spec:
                 name: two-tier-rbac-config
 
             - secretRef:
-                name: 2tiersecrets
+                name: twotiersecrets
 
           readinessProbe:
             httpGet:
