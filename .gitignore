@@ -20,7 +20,7 @@ env/
 *.key
 secrets.yaml
 secret.yaml
-
+.secrets.txt
 # Streamlit
 .streamlit/secrets.toml
 
