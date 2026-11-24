@@ -75,3 +75,94 @@ def test_authorized_document_is_retrieved():
     )
 
     assert len(documents) == 1
+
+def test_private_collection_is_searched_for_authenticated_user():
+    shared_store = MagicMock()
+    shared_store.similarity_search.return_value = []
+
+    private_store = MagicMock()
+
+    document = MagicMock()
+    document.page_content = "Shaikh Shamsul Huda profile."
+    document.metadata = {
+        "access_scope": "private",
+        "owner": "shaikh",
+        "allowed_users": ["shaikh"],
+        "allowed_roles": [],
+        "source": "Users/shaikh/shaikh_private_profile.md",
+    }
+
+    private_store.similarity_search.return_value = [document]
+
+    factory = MagicMock(return_value=private_store)
+
+    service = ChatbotService(
+        vector_store=shared_store,
+        llm=MagicMock(),
+        private_vector_store_factory=factory,
+    )
+
+    documents = service.retrieve_documents(
+        "Who is Shaikh Shamsul Huda?",
+        {"username": "shaikh", "department": "Private", "roles": ["Owner"]},
+    )
+
+    factory.assert_called_once_with("shaikh")
+    private_store.similarity_search.assert_called_once()
+
+    assert len(documents) == 1
+    assert documents[0].page_content == "Shaikh Shamsul Huda profile."
+
+
+def test_private_collection_rejects_another_users_document():
+    shared_store = MagicMock()
+    shared_store.similarity_search.return_value = []
+
+    private_store = MagicMock()
+
+    document = MagicMock()
+    document.page_content = "Shaikh's private profile."
+    document.metadata = {
+        "access_scope": "private",
+        "owner": "shaikh",
+        "allowed_users": ["shaikh"],
+        "allowed_roles": [],
+    }
+
+    # Simulate an incorrectly returned candidate. The application-side
+    # authorization check must still reject it.
+    private_store.similarity_search.return_value = [document]
+
+    service = ChatbotService(
+        vector_store=shared_store,
+        llm=MagicMock(),
+        private_vector_store_factory=MagicMock(return_value=private_store),
+    )
+
+    documents = service.retrieve_documents(
+        "Who is Shaikh?",
+        {"username": "john", "department": "Finance", "roles": []},
+    )
+
+    assert documents == []
+
+
+def test_missing_private_collection_does_not_break_shared_search():
+    shared_store = MagicMock()
+    shared_store.similarity_search.return_value = []
+
+    factory = MagicMock(return_value=None)
+
+    service = ChatbotService(
+        vector_store=shared_store,
+        llm=MagicMock(),
+        private_vector_store_factory=factory,
+    )
+
+    documents = service.retrieve_documents(
+        "What is my profile?",
+        {"username": "shaikh", "department": "Private", "roles": ["Owner"]},
+    )
+
+    factory.assert_called_once_with("shaikh")
+    assert documents == []

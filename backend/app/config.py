@@ -5,7 +5,7 @@ APP_VERSION = "1.0.0"
 
 QDRANT_URL = os.getenv(
     "QDRANT_URL",
-    "http://qdrant.enterprise-chatbot.svc.cluster.local:6333",
+    "http://qdrant.qdrant-space.svc.cluster.local:6333",
 )
 
 QDRANT_COLLECTION = os.getenv(

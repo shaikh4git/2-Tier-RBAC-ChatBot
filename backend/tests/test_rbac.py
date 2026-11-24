@@ -77,3 +77,53 @@ def test_anonymous_user_cannot_access():
         None,
         {"access_scope": "authenticated"},
     )
+
+def test_private_document_owner_access():
+    user = {
+        "username": "shaikh",
+        "department": "Private",
+        "roles": ["Owner"],
+    }
+
+    metadata = {
+        "access_scope": "private",
+        "owner": "shaikh",
+        "allowed_users": ["shaikh"],
+        "allowed_roles": [],
+    }
+
+    assert can_access(user, metadata)
+
+
+def test_private_document_denies_other_user():
+    user = {
+        "username": "john",
+        "department": "Finance",
+        "roles": ["Manager"],
+    }
+
+    metadata = {
+        "access_scope": "private",
+        "owner": "shaikh",
+        "allowed_users": ["shaikh"],
+        "allowed_roles": [],
+    }
+
+    assert not can_access(user, metadata)
+
+
+def test_private_document_allows_explicit_user():
+    user = {
+        "username": "john",
+        "department": "Finance",
+        "roles": [],
+    }
+
+    metadata = {
+        "access_scope": "private",
+        "owner": "shaikh",
+        "allowed_users": ["shaikh", "john"],
+        "allowed_roles": [],
+    }
+
+    assert can_access(user, metadata)

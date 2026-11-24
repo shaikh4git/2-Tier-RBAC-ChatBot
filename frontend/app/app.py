@@ -6,7 +6,7 @@ from components.login import render_login
 
 
 st.set_page_config(
-    page_title="Institutional RBAC Chatbot",
+    page_title="Ma'din Public School Assistant, Swalath Nagar, Malappuram",
     page_icon="🔐",
     layout="wide",
 )

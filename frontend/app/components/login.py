@@ -4,7 +4,7 @@ from api_client import login
 
 
 def render_login():
-    st.title("Institutional Chatbot")
+    st.title("Ma'din Public School Assistant, Swalath Nagar, Malappuram")
 
     st.subheader("Sign in")
 

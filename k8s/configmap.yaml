@@ -7,7 +7,7 @@ data:
   APP_NAME: "Two-Tier RBAC Chatbot"
   APP_VERSION: "1.0.0"
 
-  QDRANT_URL: "http://qdrant.enterprise-chatbot.svc.cluster.local:6333"
+  QDRANT_URL: "http://qdrant.qdrant-space.svc.cluster.local:6333"
   QDRANT_COLLECTION: "madinps_docs"
 
   EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"

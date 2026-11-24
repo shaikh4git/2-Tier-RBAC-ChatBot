@@ -64,9 +64,11 @@ class ChatbotService:
         self,
         vector_store: VectorStore,
         llm=None,
+        private_vector_store_factory=None,
     ):
         self.vector_store = vector_store
         self.llm = llm
+        self.private_vector_store_factory = private_vector_store_factory
 
     @classmethod
     def create(cls):
@@ -106,9 +108,23 @@ class ChatbotService:
             groq_api_key=GROQ_API_KEY,
         )
 
+        def private_vector_store_factory(username):
+            collection_name = f"user_{username}_docs"
+
+            # Only connect to an existing private collection.
+            if not client.collection_exists(collection_name):
+                return None
+
+            return QdrantVectorStore(
+                client=client,
+                collection_name=collection_name,
+                embedding=embeddings,
+            )
+
         return cls(
             vector_store=vector_store,
             llm=llm,
+            private_vector_store_factory=private_vector_store_factory,
         )
 
     @staticmethod
@@ -135,26 +151,68 @@ class ChatbotService:
             ]
         )
 
+    @staticmethod
+    def build_private_access_filter(username):
+        """
+        Restrict private collection retrieval to documents owned by
+        the authenticated user.
+        """
+        return models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="metadata.owner",
+                    match=models.MatchValue(value=username),
+                ),
+                models.FieldCondition(
+                    key="metadata.access_scope",
+                    match=models.MatchValue(value="private"),
+                ),
+            ]
+        )
+
     def retrieve_documents(self, question, user):
         """
-        Retrieve candidate documents using the user's effective roles,
-        then perform an additional application-side access check.
+        Search shared documents and the authenticated user's private
+        collection, then enforce application-side authorization.
         """
-        access_filter = self.build_access_filter(user)
-
-        documents = self.vector_store.similarity_search(
-            question,
-            k=RETRIEVAL_K,
-            filter=access_filter,
-        )
+        username = (user or {}).get("username", "").lower()
 
         authorized_documents = []
 
-        for document in documents:
+        # 1. Search the existing shared collection.
+        shared_documents = self.vector_store.similarity_search(
+            question,
+            k=RETRIEVAL_K,
+            filter=self.build_access_filter(user),
+        )
+
+        for document in shared_documents:
             metadata = document.metadata or {}
 
             if can_access(user, metadata):
                 authorized_documents.append(document)
+
+        # 2. Search only this authenticated user's private collection.
+        # Collection names are restricted to safe username characters.
+        if (
+            username
+            and self.private_vector_store_factory is not None
+            and all(char.isalnum() or char in "_-" for char in username)
+        ):
+            private_store = self.private_vector_store_factory(username)
+
+            if private_store is not None:
+                private_documents = private_store.similarity_search(
+                    question,
+                    k=RETRIEVAL_K,
+                    filter=self.build_private_access_filter(username),
+                )
+
+                for document in private_documents:
+                    metadata = document.metadata or {}
+
+                    if can_access(user, metadata):
+                        authorized_documents.append(document)
 
         return authorized_documents
 
