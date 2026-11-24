@@ -4,7 +4,7 @@ from api_client import ask_question
 
 
 def render_chat():
-    st.title("Institutional Chatbot")
+    st.title("Ma'din Public School Assistant, Swalath Nagar, Malappuram")
 
     if "messages" not in st.session_state:
         st.session_state["messages"] = []
