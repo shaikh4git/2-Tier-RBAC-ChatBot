@@ -246,41 +246,53 @@ jobs:
           java-version: "21"
 
 
-      
-      - name: Test Authenticated SonarQube Engine API
+
+      - name: Diagnose Authenticated SonarQube Engine API
         shell: bash
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          set -euo pipefail
+          python - <<'PY'
+          import os
+          import time
+          import base64
+          import urllib.request
+          import urllib.error
 
-          SONAR_HOST_URL="${SONAR_HOST_URL%/}"
+          host = os.environ["SONAR_HOST_URL"].rstrip("/")
+          token = os.environ["SONAR_TOKEN"]
 
-          CURL_CONFIG="$(mktemp)"
-          trap 'rm -f "$CURL_CONFIG"' EXIT
+          credentials = base64.b64encode(
+              (token + ":").encode()
+          ).decode()
 
-          chmod 600 "$CURL_CONFIG"
+          url = host + "/api/v2/analysis/engine"
 
-          printf 'user = "%s:"\n' "$SONAR_TOKEN" > "$CURL_CONFIG"
+          request = urllib.request.Request(
+              url,
+              headers={"Authorization": "Basic " + credentials}
+          )
 
-          echo "Testing authenticated scanner-engine API..."
+          print("Testing authenticated SonarQube engine endpoint...")
 
-          curl -sS \
-            --config "$CURL_CONFIG" \
-            --connect-timeout 15 \
-            --max-time 180 \
-            -D /tmp/sonar-headers.txt \
-            -o /tmp/sonar-engine.txt \
-            -w "\nHTTP Status: %{http_code}\nContent-Type: %{content_type}\nTime: %{time_total}s\n" \
-            "$SONAR_HOST_URL/api/v2/analysis/engine"
+          start = time.time()
 
-          echo "Response headers:"
-          cat /tmp/sonar-headers.txt
+          try:
+              with urllib.request.urlopen(request, timeout=180) as response:
+                  print("HTTP Status:", response.status)
+                  print("Content-Type:", response.headers.get("Content-Type"))
+                  print("Response Size:", len(response.read()))
+          except urllib.error.HTTPError as error:
+              print("HTTP Status:", error.code)
+              print("Response:", error.reason)
+          except Exception as error:
+              print("Request Error:", str(error))
+          finally:
+              print("Duration:", round(time.time() - start, 2), "seconds")
+          PY
 
-          echo "Response size:"
-          wc -c /tmp/sonar-engine.txt
-
+     
 
       - name: SonarQube analysis and Quality Gate
         uses: SonarSource/sonarqube-scan-action@v8.3.0
@@ -335,7 +347,7 @@ jobs:
       - backend-tests
       - frontend-validation
       - gitleaks
-      #- sonarqube
+      - sonarqube
 
     # if: >-
     #   always() &&
@@ -423,7 +435,7 @@ jobs:
       - backend-tests
       - frontend-validation
       - gitleaks
-      #- sonarqube
+      - sonarqube
 
     # if: >-
     #   always() &&
