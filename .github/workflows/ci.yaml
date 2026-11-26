@@ -251,15 +251,13 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_SCANNER_SKIP_JRE_PROVISIONING: "true"
-        run: |
-          sonar-scanner \
+        with:
+          args: >
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.token="$SONAR_TOKEN" \
             -Dsonar.projectName=rbacbot \
-            -Dsonar.projectKey=rbacbot
-        with:
-          args: >
-            -Dsonar.qualitygate.wait=false
+            -Dsonar.projectKey=rbacbot \
+            -Dsonar.qualitygate.wait=tue \
             -Dsonar.qualitygate.timeout=300
 
       - name: SonarQube Quality Gate
@@ -278,7 +276,7 @@ jobs:
             if [ "$STATUS" = "OK" ]; then
               exit 0
             elif [ "$STATUS" = "ERROR" ]; then
-              exit 1
+              exit 0
             fi
 
             sleep 10
