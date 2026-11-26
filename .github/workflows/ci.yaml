@@ -243,56 +243,7 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "21"
-
-
-
-      - name: Diagnose Authenticated SonarQube Engine API
-        shell: bash
-        env:
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          python - <<'PY'
-          import os
-          import time
-          import base64
-          import urllib.request
-          import urllib.error
-
-          host = os.environ["SONAR_HOST_URL"].rstrip("/")
-          token = os.environ["SONAR_TOKEN"]
-
-          credentials = base64.b64encode(
-              (token + ":").encode()
-          ).decode()
-
-          url = host + "/api/v2/analysis/engine"
-
-          request = urllib.request.Request(
-              url,
-              headers={"Authorization": "Basic " + credentials}
-          )
-
-          print("Testing authenticated SonarQube engine endpoint...")
-
-          start = time.time()
-
-          try:
-              with urllib.request.urlopen(request, timeout=180) as response:
-                  print("HTTP Status:", response.status)
-                  print("Content-Type:", response.headers.get("Content-Type"))
-                  print("Response Size:", len(response.read()))
-          except urllib.error.HTTPError as error:
-              print("HTTP Status:", error.code)
-              print("Response:", error.reason)
-          except Exception as error:
-              print("Request Error:", str(error))
-          finally:
-              print("Duration:", round(time.time() - start, 2), "seconds")
-          PY
-
-     
+          java-version: "21"     
 
       - name: SonarQube analysis and Quality Gate!
         uses: SonarSource/sonarqube-scan-action@v8.3.0
@@ -338,7 +289,7 @@ jobs:
   # 6. BACKEND IMAGE BUILD, TRIVY SCAN AND PUSH
   # --------------------------------------------------
   publish-backend:
-    name: Build, Scan and Push Backend Image
+    name: Build, Trivy Scan and Push Backend Image
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -409,7 +360,7 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH
-
+  
       # Build amd64 + arm64 and push one multi-architecture image
       - name: Build and push backend image (amd64 + arm64)
         uses: docker/build-push-action@v6
@@ -426,7 +377,7 @@ jobs:
   # 7. FRONTEND IMAGE BUILD, TRIVY SCAN AND PUSH
   # --------------------------------------------------
   publish-frontend:
-    name: Build, Scan and Push Frontend Image
+    name: Build, Trivy Scan and Push Frontend Image
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
