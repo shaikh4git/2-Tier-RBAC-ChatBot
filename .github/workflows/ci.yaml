@@ -246,20 +246,30 @@ jobs:
           java-version: "21"
 
 
+      
       - name: Test Authenticated SonarQube Engine API
         shell: bash
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          set -euo pipefail
+
           SONAR_HOST_URL="${SONAR_HOST_URL%/}"
+
+          CURL_CONFIG="$(mktemp)"
+          trap 'rm -f "$CURL_CONFIG"' EXIT
+
+          chmod 600 "$CURL_CONFIG"
+
+          printf 'user = "%s:"\n' "$SONAR_TOKEN" > "$CURL_CONFIG"
 
           echo "Testing authenticated scanner-engine API..."
 
           curl -sS \
+            --config "$CURL_CONFIG" \
             --connect-timeout 15 \
             --max-time 180 \
-            -u "$SONAR_TOKEN:" \
             -D /tmp/sonar-headers.txt \
             -o /tmp/sonar-engine.txt \
             -w "\nHTTP Status: %{http_code}\nContent-Type: %{content_type}\nTime: %{time_total}s\n" \
@@ -270,7 +280,7 @@ jobs:
 
           echo "Response size:"
           wc -c /tmp/sonar-engine.txt
-   
+
 
       - name: SonarQube analysis and Quality Gate
         uses: SonarSource/sonarqube-scan-action@v8.3.0
