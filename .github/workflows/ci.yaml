@@ -245,27 +245,32 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      
-      - name: Diagnose SonarQube Engine Endpoint
+
+      - name: Test Authenticated SonarQube Engine API
         shell: bash
         env:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          echo "Testing SonarQube server..."
+          SONAR_HOST_URL="${SONAR_HOST_URL%/}"
 
-          curl -v --connect-timeout 15 --max-time 90 \
-            "$SONAR_HOST_URL/api/server/version"
+          echo "Testing authenticated scanner-engine API..."
 
-          echo ""
-          echo "Testing scanner engine endpoint..."
+          curl -sS \
+            --connect-timeout 15 \
+            --max-time 180 \
+            -u "$SONAR_TOKEN:" \
+            -D /tmp/sonar-headers.txt \
+            -o /tmp/sonar-engine.txt \
+            -w "\nHTTP Status: %{http_code}\nContent-Type: %{content_type}\nTime: %{time_total}s\n" \
+            "$SONAR_HOST_URL/api/v2/analysis/engine"
 
-          curl -v --connect-timeout 15 --max-time 180 \
-            "$SONAR_HOST_URL/api/v2/analysis/engine" \
-            -o /tmp/sonar-engine-response
+          echo "Response headers:"
+          cat /tmp/sonar-headers.txt
 
-          echo "HTTP request completed."
-          ls -lh /tmp/sonar-engine-response
-
+          echo "Response size:"
+          wc -c /tmp/sonar-engine.txt
+   
 
       - name: SonarQube analysis and Quality Gate
         uses: SonarSource/sonarqube-scan-action@v8.3.0
